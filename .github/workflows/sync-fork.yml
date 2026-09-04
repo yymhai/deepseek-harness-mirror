@@ -12,7 +12,7 @@ env:
 
 jobs:
   sync:
-    name: Mirror ${{ env.GITHUB_REPO }} → Gitee/${{ env.GITEE_REPO }}
+    name: Mirror deepseek-ai/deepseek-harness → Gitee/qianchilang/deepseek-harness
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
