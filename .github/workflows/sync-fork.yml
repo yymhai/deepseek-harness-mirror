@@ -1,0 +1,64 @@
+name: Sync Upstream to Gitee
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+env:
+  GITHUB_REPO: 'deepseek-ai/deepseek-harness'
+  GITEE_REPO: 'deepseek-harness'
+  FORCE_PUSH: 'true'
+
+jobs:
+  sync:
+    name: Mirror ${{ env.GITHUB_REPO }} → Gitee/${{ env.GITEE_REPO }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: 检出上游完整历史
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GITHUB_REPO }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: 配置 Git 身份
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: 推送到 Gitee
+        env:
+          GITEE_USERNAME: ${{ secrets.GITEE_USERNAME }}
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_REPO: ${{ env.GITEE_REPO }}
+          FORCE_PUSH: ${{ env.FORCE_PUSH }}
+        run: |
+          set -euo pipefail
+
+          REMOTE_URL="https://${GITEE_USERNAME}:${GITEE_TOKEN}@gitee.com/${GITEE_USERNAME}/${GITEE_REPO}.git"
+          echo "→ Target: https://${GITEE_USERNAME}:***@gitee.com/${GITEE_USERNAME}/${GITEE_REPO}.git"
+
+          git remote remove gitee 2>/dev/null || true
+          git remote add gitee "${REMOTE_URL}"
+          git ls-remote gitee > /dev/null
+
+          if [ "${FORCE_PUSH}" = "true" ]; then
+            echo "→ Pushing all branches (force)..."
+            git push gitee --all --force
+            echo "→ Pushing all tags (force)..."
+            git push gitee --tags --force
+          else
+            echo "→ Pushing all branches..."
+            git push gitee --all
+            echo "→ Pushing all tags..."
+            git push gitee --tags
+          fi
+
+          echo "✅ Sync complete"
+
+      - name: 清理 remote（避免 token 残留）
+        if: always()
+        run: git remote remove gitee 2>/dev/null || true
